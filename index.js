@@ -1,6 +1,5 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
-const axios = require('axios').default;
 const dotenv = require('dotenv');
 
 const app = express();
@@ -11,31 +10,55 @@ const lineConfig = {
     channelSecret: process.env.CHANNEL_SECRET
 };
 
-app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
-    try {
-        const events = req.body.events;
-        console.log('event>>>', events);
+const client = new line.Client(lineConfig);
 
-        if (events.length > 0) {
-            await Promise.all(events.map(item => handleEvent(item)));
-        }
-        
-        res.status(200).send("OK"); // Always send a 200 OK response
-    } catch (error) {
-        console.error(error);
-        res.status(500).send("Internal Server Error");
-    }
+app.post('/webhook', line.middleware(lineConfig), (req, res) => {
+    Promise
+        .all(req.body.events.map(handleEvent))
+        .then((result) => res.json(result))
+        .catch((err) => {
+            console.error(err);
+            res.status(500).end();
+        });
 });
 
-const handleEvent = async (event) => {
-    try {
-        console.log(event);
-        // Add your event handling logic here
-    } catch (error) {
-        console.error("Error in handleEvent: ", error);
-        // Handle any errors that occur during event handling
+function handleEvent(event) {
+    if (event.type !== 'message' || event.message.type !== 'text') {
+        // Ignore non-text messages
+        return Promise.resolve(null);
     }
-};
+
+    // Check if the text message is "สวัสดี"
+    if (event.message.text === 'สวัสดี') {
+        // Reply with Flex Message
+        const flexMessage = {
+            type: 'flex',
+            altText: 'สวัสดี',
+            contents: {
+                type: 'bubble',
+                body: {
+                    type: 'box',
+                    layout: 'vertical',
+                    contents: [
+                        {
+                            type: 'text',
+                            text: 'สวัสดีครับ/ค่ะ',
+                            wrap: true
+                        }
+                    ]
+                }
+            }
+        };
+
+        return client.replyMessage(event.replyToken, flexMessage);
+    } else {
+        // Reply with normal text message
+        return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: 'ขอโทษครับ/ค่ะ ฉันไม่เข้าใจคำถาม'
+        });
+    }
+}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
