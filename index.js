@@ -1,49 +1,32 @@
 const express = require('express');
-const { Client } = require('@line/bot-sdk');
+const line = require('@line/bot-sdk');
+const axios = require('axios').default;
+const dotenv = require('dotenv');
 
-// กำหนดค่า config สำหรับ LINE Messaging API
-const config = {
-  channelAccessToken: 'owko9poj+cba20ojGAa2KcGhIB6e44aumaVOoyG/UUAYskltHkiw/XO4z79e13uovw5GYg3fYj57/HGVemzA2CNbW/Ih21yVPK4DUHzFz4ef2sMx0tsTwKSoPfmoTyyftAfAXNXExoRLcpVfBrsLbAdB04t89/1O/w1cDnyilFU=', // ใส่ Access Token ของคุณ
-  channelSecret: '05170a024d42b4e13f28b48f76a4bf42', // ใส่ Channel Secret ของคุณ
+const app = express();
+dotenv.config();
+
+const lineConfig = {
+    channelAccessToken: 'hlkg53TDcJ7zW/uCX5GJBYvIZBA06f/u06rmN+KaT29+yM0/fhu9NIISqRnH6Eof+hBVMjTZ0JIGEoFZ9rkjm1paZQwdo7qaZynME81+3ybqoQOmhMralkYAyCYq//QS48t1qzGhbWe9NSBpBOrU6wdB04t89/1O/w1cDnyilFU=',
+    channelSecret: '1a3eb4db055d713d1457dfa86f7df5c6'
 };
 
-const client = new Client(config);
-const app = express();
-
-app.get('/', (req, res) => {
-    res.send('สวัสดี');
-  });
-
-// สร้าง endpoint สำหรับ webhook
-app.post('/webhook', express.json(), (req, res) => {
-  req.body.events.forEach(event => {
-    if (event.type === 'message' && event.message.type === 'text') {
-      // ตรวจสอบข้อความ A และตอบกลับด้วย B
-      if (event.message.text === 'A') {
-        const replyToken = event.replyToken;
-        const message = {
-          type: 'text',
-          text: 'B',
-        };
-        client.replyMessage(replyToken, message)
-          .then(() => {
-            res.status(200).send('OK'); // ส่งสถานะ OK กลับไปยัง LINE
-          })
-          .catch((err) => {
-            console.error(err);
-            res.status(500).end();
-          });
-      } else {
-        res.status(200).send('OK'); // ส่งสถานะ OK สำหรับข้อความอื่นๆ
-      }
-    } else {
-      res.status(200).send('OK'); // ส่งสถานะ OK สำหรับเหตุการณ์อื่นๆ
+app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
+    try {
+        const events = req.body.events;
+        console.log('event>>>', events);
+        return events.length > 0 ? await Promise.all(events.map(item => handleEvent(item))) : res.status(200).send("OK");
+    } catch (error) {
+        console.error(error);
+        res.status(500).end();
     }
-  });
 });
 
-// กำหนด port สำหรับเว็บแอป
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Listening on port ${port}`);
+const handleEvent = async (event) => {
+    console.log(event);
+};
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
