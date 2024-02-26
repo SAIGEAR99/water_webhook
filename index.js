@@ -7,23 +7,34 @@ const app = express();
 dotenv.config();
 
 const lineConfig = {
-    channelAccessToken: 'hlkg53TDcJ7zW/uCX5GJBYvIZBA06f/u06rmN+KaT29+yM0/fhu9NIISqRnH6Eof+hBVMjTZ0JIGEoFZ9rkjm1paZQwdo7qaZynME81+3ybqoQOmhMralkYAyCYq//QS48t1qzGhbWe9NSBpBOrU6wdB04t89/1O/w1cDnyilFU=',
-    channelSecret: '1a3eb4db055d713d1457dfa86f7df5c6'
+    channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
+    channelSecret: process.env.CHANNEL_SECRET
 };
 
 app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
     try {
         const events = req.body.events;
         console.log('event>>>', events);
-        return events.length > 0 ? await Promise.all(events.map(item => handleEvent(item))) : res.status(200).send("OK");
+
+        if (events.length > 0) {
+            await Promise.all(events.map(item => handleEvent(item)));
+        }
+        
+        res.status(200).send("OK"); // Always send a 200 OK response
     } catch (error) {
         console.error(error);
-        res.status(500).end();
+        res.status(500).send("Internal Server Error");
     }
 });
 
 const handleEvent = async (event) => {
-    console.log(event);
+    try {
+        console.log(event);
+        // Add your event handling logic here
+    } catch (error) {
+        console.error("Error in handleEvent: ", error);
+        // Handle any errors that occur during event handling
+    }
 };
 
 const PORT = process.env.PORT || 3000;
