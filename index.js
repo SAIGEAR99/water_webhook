@@ -23,13 +23,17 @@ app.post('/webhook', express.json(), (req, res) => {
         };
         client.replyMessage(replyToken, message)
           .then(() => {
-            res.status(200).end();
+            res.status(200).send('OK'); // ส่งสถานะ OK กลับไปยัง LINE
           })
           .catch((err) => {
             console.error(err);
             res.status(500).end();
           });
+      } else {
+        res.status(200).send('OK'); // ส่งสถานะ OK สำหรับข้อความอื่นๆ
       }
+    } else {
+      res.status(200).send('OK'); // ส่งสถานะ OK สำหรับเหตุการณ์อื่นๆ
     }
   });
 });
