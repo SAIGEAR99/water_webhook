@@ -1,66 +1,95 @@
+const axios = require('axios');
 const express = require('express');
-const line = require('@line/bot-sdk');
-const dotenv = require('dotenv');
+const bodyParser = require('body-parser');
 
 const app = express();
-dotenv.config();
+app.use(bodyParser.json());
 
-const lineConfig = {
-    channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
-    channelSecret: process.env.CHANNEL_SECRET
-};
 
-const client = new line.Client(lineConfig);
+app.post('/webhook', async (req, res) => {
+    const replyToken = req.body.events[0].replyToken;
+    const userMessage = req.body.events[0].message.text.toLowerCase();
 
-app.post('/webhook', line.middleware(lineConfig), (req, res) => {
-    Promise
-        .all(req.body.events.map(handleEvent))
-        .then((result) => res.json(result))
-        .catch((err) => {
-            console.error(err);
-            res.status(500).end();
-        });
+    try {
+        const sensorData = await getSensorData();
+        const responseMessage = createResponseMessage(sensorData, userMessage);
+        await sendReply(responseMessage, replyToken);
+        res.status(200).send('OK');
+    } catch (error) {
+        console.error('Error processing webhook:', error);
+        res.status(500).send('Error');
+    }
 });
 
-function handleEvent(event) {
-    if (event.type !== 'message' || event.message.type !== 'text') {
-        // Ignore non-text messages
-        return Promise.resolve(null);
-    }
+async function getSensorData() {
+    try {
+        const url = 'https://api.sheety.co/4457c48e44b9a655e732354bdcc2bcce/esp32Log/reportPpm';
 
-    // Check if the text message is "สวัสดี"
-    if (event.message.text === 'สวัสดี') {
-        // Reply with Flex Message
-        const flexMessage = {
-            type: 'flex',
-            altText: 'สวัสดี',
-            contents: {
-                type: 'bubble',
-                body: {
-                    type: 'box',
-                    layout: 'vertical',
-                    contents: [
-                        {
-                            type: 'text',
-                            text: 'สวัสดีครับ/ค่ะ',
-                            wrap: true
-                        }
-                    ]
-                }
-            }
+        const response = await axios.get(url);
+        const data = response.data.reportPpm;
+
+        return data.map(row => ({
+            tds: row[0],
+            temp: row[1],
+            humidity: row[2],
+            rain: row[3]
+        }));
+    } catch (error) {
+        console.error('Error fetching sensor data:', error);
+        throw error;
+    }
+}
+
+
+function createResponseMessage(sensorData, userMessage) {
+    let message;
+
+    if (userMessage === 'tds') {
+        const tds = parseInt(sensorData.tds);
+        let notify_wa;
+
+        if (tds < 0 ){
+            notify_wa = "❌ ไม่ปกติ";
+        } else if(tds >= 1 && tds <= 300){
+            notify_wa = "✅ บริสุทธิ์ทั่วไป";
+        } else if(tds >= 301 && tds <= 600){
+            notify_wa = "🟨 ควรปรับปรุง";
+        } else {
+            notify_wa = "🟥 คุณภาพแย่";
+        }
+
+        // สร้างข้อความที่จะส่งกลับไปยัง LINE
+        message = {
+            "type": "text",
+            "text": `TDS: ${tds} PPM\nสถานะคุณภาพน้ำ: ${notify_wa}`
         };
-
-        return client.replyMessage(event.replyToken, flexMessage);
     } else {
-        // Reply with normal text message
-        return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: 'ขอโทษครับ/ค่ะ ฉันไม่เข้าใจคำถาม'
-        });
+        // สำหรับข้อความอื่นๆ ที่ไม่ใช่ 'tds'
+        message = {
+            "type": "text",
+            "text": "ขอโทษ, ฉันไม่เข้าใจข้อความของคุณ"
+        };
     }
+
+    return message;
+}
+
+async function sendReply(message, replyToken) {
+    const url = 'https://api.line.me/v2/bot/message/reply';
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+    };
+
+    const postData = {
+        replyToken,
+        messages: [message],
+    };
+
+    await axios.post(url, postData, { headers });
 }
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
