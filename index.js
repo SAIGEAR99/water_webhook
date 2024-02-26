@@ -12,6 +12,7 @@ const app = express();
 
 // สร้าง endpoint สำหรับ webhook
 app.post('/webhook', express.json(), (req, res) => {
+    res.send('ok')
   req.body.events.forEach(event => {
     if (event.type === 'message' && event.message.type === 'text') {
       // ตรวจสอบข้อความ A และตอบกลับด้วย B
