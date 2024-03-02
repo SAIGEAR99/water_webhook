@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chart.js Example</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<style>
+    .gauge-container {
+      position: relative;
+      width: 300px; /* Width of the gauge */
+      height: 250px; /* Height including space for the title and value */
+      margin: auto;
+    }
+
+    .gauge-value {
+        top: 70px;
+      position: absolute;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      margin-top: -100px;
+
+    }
+    .gauge-value-2 {
+      position: absolute;
+      top: 153px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 2em; /* Size of the percentage text */
+      font-weight: bold;
+    }
+    .gauge-title {
+      text-align: center;
+      font-weight: normal;
+    }
+
+    .gauge-footer {
+      text-align: center;
+    }
+  </style>
+<body>
+
+  <div class="container">
+    <div class="row">
+      <div class="col-md-8 mx-auto mt-5">
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <h5 class="card-title">ระดับแสง</h5>
+          </div>
+          <div class="card-body">
+            <input type="range" min="0" max="100" value="50" id="rangeInput" class="form-range mt-3">
+            <p id="percentageDisplay">50%</p> <!-- Display percentage -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row">
+      <div class="col-md-8 mx-auto mt-5">
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <h5 class="card-title">Humidity Sensor</h5>
+          </div>
+          <div class="card-body">
+            <div class="gauge-container">
+              <canvas id="gaugeChart"></canvas>
+              <div class="gauge-value-2" id="gaugeValue">0%</div> <!-- ID added here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+  <div class="row">
+    <div class="col-md-8 mx-auto mt-5">
+      <div class="card">
+        <div class="card-header bg-danger text-white">
+          <h5 class="card-title">Temperature Sensor</h5>
+        </div>
+        <div class="card-body">
+          <div class="gauge-container">
+            <canvas id="tempGaugeChart"></canvas>
+            <div class="gauge-value-2" id="tempGaugeValue">0°C</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+  <script>
+    function updateGaugeChart(gaugeValue) {
+  // Convert gaugeValue to an integer
+  var intValue = Math.round(gaugeValue); // Use Math.round to round to the nearest integer
+
+  // Update the gauge value element text
+  gaugeValueElement.textContent = intValue + '%';
+
+  gaugeChart.data.datasets.forEach((dataset) => {
+    dataset.data = [intValue, 100 - intValue]; // Update the data using intValue
+  });
+  gaugeChart.update(); // Update the chart
+}
+
+
+    function updateTempGaugeChart(tempValue) {
+    tempGaugeValueElement.textContent = tempValue + '°C';
+    tempGaugeChart.data.datasets.forEach((dataset) => {
+      dataset.data = [tempValue, 100 - tempValue];
+    });
+    tempGaugeChart.update();
+  }
+  
+    var ctx = document.getElementById('gaugeChart').getContext('2d');
+    var gaugeValueElement = document.getElementById('gaugeValue'); // Get the gauge value element
+  
+    // Initialize the chart with some default value
+    var gaugeChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [0, 100], // Start with 0 before fetching the actual value
+          backgroundColor: ['#00bfff', '#ddd'],
+          borderColor: ['white'],
+          borderWidth: [5],
+          circumference: 180,
+          rotation: 270
+        }]
+      },
+      options: {
+        responsive: false,
+        cutout: '90%',
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        animation: {
+  onComplete: function() {
+    if (gaugeChart) {
+      gaugeValueElement.style.fontSize = (gaugeChart.width / 10) + 'px';
+    }
+  }
+}
+}
+});
+
+
+var tempCtx = document.getElementById('tempGaugeChart').getContext('2d');
+  var tempGaugeValueElement = document.getElementById('tempGaugeValue');
+  var tempGaugeChart = new Chart(tempCtx, {
+    type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [0, 100], // Start with 0 before fetching the actual value
+          backgroundColor: ['#FF0000', '#ddd'],
+          borderColor: ['white'],
+          borderWidth: [5],
+          circumference: 180,
+          rotation: 270
+        }]
+      },
+      options: {
+        responsive: false,
+        cutout: '90%',
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        animation: {
+  onComplete: function() {
+    if (gaugeChart) {
+      gaugeValueElement.style.fontSize = (gaugeChart.width / 10) + 'px';
+    }
+  }
+}
+}
+
+  });
+  
+    var socket = new WebSocket('wss://water-bot-222609226e9c.herokuapp.com');
+  
+    socket.addEventListener('open', function (event) {
+      console.log('Connected to WebSocket');
+    });
+  
+    socket.addEventListener('message', function (event) {
+    console.log('Message from server', event.data);
+    var data = JSON.parse(event.data);
+
+    if (data.topic === '/topic/humidity') {
+      updateGaugeChart(data.message);
+    } else if (data.topic === '/topic/temp') {
+      updateTempGaugeChart(data.message);
+    }
+  });
+  
+    socket.addEventListener('error', function (event) {
+      console.error('WebSocket error:', event);
+    });
+  </script>
+
+  
+  <script>
+    const rangeInput = document.getElementById('rangeInput');
+    const percentageDisplay = document.getElementById('percentageDisplay');
+
+    rangeInput.addEventListener('input', function() {
+      const value = rangeInput.value;
+      percentageDisplay.textContent = value + '%';
+
+      const data = { value: value };
+
+      fetch('/graph/scroll', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Server response:', data);
+      })
+      .catch(error => {
+        console.error('Error sending data to server:', error);
+      });
+    });
+  </script>
+
+  
+</body>
+</html>
