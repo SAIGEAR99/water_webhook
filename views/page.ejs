@@ -3,51 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chart.js Example</title>
+  <title>Sensor Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <style>
-    .gauge-container {
-      position: relative;
-      width: 300px; /* Width of the gauge */
-      height: 250px; /* Height including space for the title and value */
-      margin: auto;
-    }
+  .gauge-container {
+    position: relative;
+    width: 300px; /* Width of the gauge */
+    height: 250px; /* Height including space for the title and value */
+    margin: auto;
+  }
 
-    .gauge-value {
-        top: 70px;
+  .gauge-value-2 {
+    position: absolute;
+    top: 153px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 2em; /* Size of the percentage text */
+    font-weight: bold;
+  }
+  .gauge-value {
+        top: 0px;
       position: absolute;
       left: 0;
       width: 100%;
       text-align: center;
-      margin-top: -100px;
+      margin-top: -100px;}
 
-    }
-    .gauge-value-2 {
-      position: absolute;
-      top: 153px;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      font-size: 2em; /* Size of the percentage text */
-      font-weight: bold;
-    }
-    .gauge-title {
-      text-align: center;
-      font-weight: normal;
-    }
-
-    .gauge-footer {
-      text-align: center;
-    }
-  </style>
+      .chart{
+        margin-top: -40px;
+      }
+      .row{
+        margin-top: -30px;
+      }
+</style>
 <body>
-
   <div class="container">
     <div class="row">
-      <div class="col-md-8 mx-auto mt-5">
+      <!-- Light Level Slider -->
+      <div class="col-md-6 mx-auto mt-5">
         <div class="card">
           <div class="card-header bg-primary text-white">
             <h5 class="card-title">ระดับแสง</h5>
@@ -58,57 +54,115 @@
           </div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <div class="container">
-    <div class="row">
-      <div class="col-md-8 mx-auto mt-5">
+      <!-- Humidity Sensor -->
+      <div class="col-md-6 mx-auto mt-5">
         <div class="card">
-          <div class="card-header bg-primary text-white">
+          <div class="card-header bg-primary text-white"> 
             <h5 class="card-title">Humidity Sensor</h5>
           </div>
           <div class="card-body">
             <div class="gauge-container">
-              <canvas id="gaugeChart"></canvas>
-              <div class="gauge-value-2" id="gaugeValue">0%</div> <!-- ID added here -->
+              <canvas id="gaugeChart" class="chart"></canvas>
+              <div class="gauge-value-2" id="gaugeValue">0%</div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="container">
-  <div class="row">
-    <div class="col-md-8 mx-auto mt-5">
-      <div class="card">
-        <div class="card-header bg-danger text-white">
-          <h5 class="card-title">Temperature Sensor</h5>
+    <div class="row">
+      <!-- Temperature Sensor -->
+      <div class="col-md-6 mx-auto mt-5">
+        <div class="card">
+          <div class="card-header bg-danger text-white">
+            <h5 class="card-title">Temperature Sensor</h5>
+          </div>
+          <div class="card-body">
+            <div class="gauge-container">
+              <canvas id="tempGaugeChart" class="chart"></canvas>
+              <div class="gauge-value-2" id="tempGaugeValue">0°C</div>
+            </div>
+          </div>
         </div>
-        <div class="card-body">
-          <div class="gauge-container">
-            <canvas id="tempGaugeChart"></canvas>
-            <div class="gauge-value-2" id="tempGaugeValue">0°C</div>
+      </div>
+
+      <!-- TDS Sensor -->
+      <div class="col-md-6 mx-auto mt-5">
+        <div class="card">
+          <div class="card-header bg-info text-white">
+            <h5 class="card-title">TDS Sensor</h5>
+          </div>
+          <div class="card-body">
+            <div class="gauge-container">
+              <canvas id="tdsGaugeChart" class="chart"></canvas>
+              <div class="gauge-value-2" id="tdsGaugeValue">0 ppm</div>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
+    <div class="row">
+      <!-- Light Sensor -->
+      <div class="col-md-6 mx-auto mt-5">
+        <div class="card">
+          <div class="card-header bg-warning text-white">
+            <h5 class="card-title">Light Sensor</h5>
+          </div>
+          <div class="card-body">
+            <div class="gauge-container">
+              <canvas id="lightGaugeChart" class="chart"></canvas>
+              <div class="gauge-value-2" id="lightGaugeValue">0 %</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Raindrop Sensor -->
+      <div class="col-md-6 mx-auto mt-5">
+        <div class="card">
+          <div class="card-header bg-success text-white">
+            <h5 class="card-title">Raindrop Sensor</h5>
+          </div>
+          <div class="card-body">
+            <div class="gauge-container">
+              <canvas id="rainGaugeChart" class="chart"></canvas>
+              <div class="gauge-value-2" id="rainGaugeValue">0%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Temp_Air Sensor -->
+      <div class="col-md-6 mx-auto mt-5">
+        <div class="card">
+          <div class="card-header bg-secondary text-white">
+            <h5 class="card-title">Temp_Air Sensor</h5>
+          </div>
+          <div class="card-body">
+            <div class="gauge-container">
+              <canvas id="tempAirGaugeChart" class="chart"></canvas>
+              <div class="gauge-value-2" id="tempAirGaugeValue">0°C</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 mx-auto mt-5">
+
+      </div>
+    </div>
   </div>
-</div>
-</div>
   <script>
     function updateGaugeChart(gaugeValue) {
-  // Convert gaugeValue to an integer
-  var intValue = Math.round(gaugeValue); // Use Math.round to round to the nearest integer
-
-  // Update the gauge value element text
+  var intValue = Math.round(gaugeValue); 
   gaugeValueElement.textContent = intValue + '%';
-
   gaugeChart.data.datasets.forEach((dataset) => {
-    dataset.data = [intValue, 100 - intValue]; // Update the data using intValue
+    dataset.data = [intValue, 100 - intValue]; 
   });
-  gaugeChart.update(); // Update the chart
+  gaugeChart.update(); 
 }
 
 
@@ -119,6 +173,40 @@
     });
     tempGaugeChart.update();
   }
+
+  function updateTdsGaugeChart(tdsValue) {
+  tdsGaugeValueElement.textContent = tdsValue + ' ppm';
+  tdsGaugeChart.data.datasets.forEach((dataset) => {
+    dataset.data = [tdsValue, 100 - tdsValue];
+  });
+  tdsGaugeChart.update();
+}
+
+function updateLightGaugeChart(lightValue) {
+  lightGaugeValueElement.textContent = lightValue + ' %';
+  lightGaugeChart.data.datasets.forEach((dataset) => {
+    dataset.data = [lightValue, 100 - lightValue];
+  });
+  lightGaugeChart.update();
+}
+
+function updateTempAirGaugeChart(tempAirValue) {
+  tempAirGaugeValueElement.textContent = tempAirValue + '°C';
+  tempAirGaugeChart.data.datasets.forEach((dataset) => {
+    dataset.data = [tempAirValue, 100 - tempAirValue];
+  });
+  tempAirGaugeChart.update();
+}
+
+function updateRainGaugeChart(rainValue) {
+  rainGaugeValueElement.textContent = rainValue + '%';
+  rainGaugeChart.data.datasets.forEach((dataset) => {
+    dataset.data = [rainValue, 100 - rainValue];
+  });
+  rainGaugeChart.update();
+}
+
+
   
     var ctx = document.getElementById('gaugeChart').getContext('2d');
     var gaugeValueElement = document.getElementById('gaugeValue'); // Get the gauge value element
@@ -186,24 +274,164 @@ var tempCtx = document.getElementById('tempGaugeChart').getContext('2d');
 }
 }
 
-  });
-  
-    var socket = new WebSocket('wss://water-bot-222609226e9c.herokuapp.com');
+});
+
+var tdsCtx = document.getElementById('tdsGaugeChart').getContext('2d');
+var tdsGaugeValueElement = document.getElementById('tdsGaugeValue');
+var tdsGaugeChart = new Chart(tdsCtx, {
+  type: 'doughnut',
+  data: {
+    datasets: [{
+      data: [0, 100],
+      backgroundColor: ['#32CD32', '#ddd'], // Lime Green and light gray for TDS sensor
+      borderColor: ['white'],
+      borderWidth: [5],
+      circumference: 180,
+      rotation: 270
+    }]
+  },
+  options: {
+    responsive: false,
+    cutout: '90%',
+    plugins: {
+      legend: { display: false }
+    },
+    animation: {
+      onComplete: function() {
+        tdsGaugeValueElement.style.fontSize = (tdsGaugeChart.width / 10) + 'px';
+      }
+    }
+  }
+});
+
+
+var lightCtx = document.getElementById('lightGaugeChart').getContext('2d');
+var lightGaugeValueElement = document.getElementById('lightGaugeValue');
+var lightGaugeChart = new Chart(lightCtx, {
+  type: 'doughnut',
+  data: {
+    datasets: [{
+      data: [0, 100],
+      backgroundColor: ['#FFD700', '#ddd'], // Gold and light gray for light sensor
+      borderColor: ['white'],
+      borderWidth: [5],
+      circumference: 180,
+      rotation: 270
+    }]
+  },
+  options: {
+    responsive: false,
+    cutout: '90%',
+    plugins: {
+      legend: { display: false }
+    },
+    animation: {
+      onComplete: function() {
+        lightGaugeValueElement.style.fontSize = (lightGaugeChart.width / 10) + 'px';
+      }
+    }
+  }
+});
+
+
+
+
+var rainCtx = document.getElementById('rainGaugeChart').getContext('2d');
+var rainGaugeValueElement = document.getElementById('rainGaugeValue');
+var rainGaugeChart = new Chart(rainCtx, {
+  type: 'doughnut',
+  data: {
+    datasets: [{
+      data: [0, 100],
+      backgroundColor: ['#00BFFF', '#ddd'], // Deep sky blue and light gray for rain sensor
+      borderColor: ['white'],
+      borderWidth: [5],
+      circumference: 180,
+      rotation: 270
+    }]
+  },
+  options: {
+    responsive: false,
+    cutout: '90%',
+    plugins: {
+      legend: { display: false }
+    },
+    animation: {
+      onComplete: function() {
+        rainGaugeValueElement.style.fontSize = (rainGaugeChart.width / 10) + 'px';
+      }
+    }
+  }
+});
+
+
+var tempAirCtx = document.getElementById('tempAirGaugeChart').getContext('2d');
+var tempAirGaugeValueElement = document.getElementById('tempAirGaugeValue');
+var tempAirGaugeChart = new Chart(tempAirCtx, {
+  type: 'doughnut',
+  data: {
+    datasets: [{
+      data: [0, 100],
+      backgroundColor: ['#FF6347', '#ddd'], // Tomato red and light gray for air temperature sensor
+      borderColor: ['white'],
+      borderWidth: [5],
+      circumference: 180,
+      rotation: 270
+    }]
+  },
+  options: {
+    responsive: false,
+    cutout: '90%',
+    plugins: {
+      legend: { display: false }
+    },
+    animation: {
+      onComplete: function() {
+        tempAirGaugeValueElement.style.fontSize = (tempAirGaugeChart.width / 10) + 'px';
+      }
+    }
+  }
+});
+
+
+
+    var socket = new WebSocket('wss://water-bot-222609226e9c.herokuapp.com'); 
   
     socket.addEventListener('open', function (event) {
       console.log('Connected to WebSocket');
     });
   
     socket.addEventListener('message', function (event) {
-    console.log('Message from server', event.data);
-    var data = JSON.parse(event.data);
+  var data = JSON.parse(event.data);
 
-    if (data.topic === '/topic/humidity') {
+  switch(data.topic) {
+    case '/topic/humidity':
       updateGaugeChart(data.message);
-    } else if (data.topic === '/topic/temp') {
+      break;
+    case '/topic/temp':
       updateTempGaugeChart(data.message);
-    }
-  });
+      break;
+    case '/topic/tds':
+      updateTdsGaugeChart(data.message);
+      console.log(data.message)
+      break;
+    case '/topic/light':
+      updateLightGaugeChart(data.message);
+      console.log(data.message)
+      break;
+    case '/topic/rain':
+      updateRainGaugeChart(data.message);
+      console.log(data.message)
+      break;
+    case '/topic/temp_air':
+      updateTempAirGaugeChart(data.message);
+      console.log(data.message)
+      break;
+    default:
+      console.log("Unknown topic");
+  }
+});
+
   
     socket.addEventListener('error', function (event) {
       console.error('WebSocket error:', event);

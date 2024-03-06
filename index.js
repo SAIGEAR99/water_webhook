@@ -16,6 +16,30 @@ const mqttClient = require('./mqtt');
 const header_url = "https://water-bot-222609226e9c.herokuapp.com";
 
 
+//ส่วนหัว
+const MQTT_TOPIC_HUMIDITY = '/topic/humidity';
+const MQTT_TOPIC_TEMP = '/topic/temp';
+const MQTT_TOPIC_TDS = '/topic/tds';
+const MQTT_TOPIC_TEMP_AIR = '/topic/temp_air';
+const MQTT_TOPIC_RAIN = '/topic/rain';
+const MQTT_TOPIC_LIGHT = '/topic/light';
+
+// Subscribe to both topics
+mqttClient.subscribe(MQTT_TOPIC_HUMIDITY);
+mqttClient.subscribe(MQTT_TOPIC_TEMP);
+mqttClient.subscribe(MQTT_TOPIC_TDS);
+mqttClient.subscribe(MQTT_TOPIC_TEMP_AIR);
+mqttClient.subscribe(MQTT_TOPIC_RAIN);
+mqttClient.subscribe(MQTT_TOPIC_LIGHT);
+
+
+//กำหนดค่า Global ของค่าที่รับมาจาก MQTT
+let latestHumidity = null;
+let latestTemperature = null;
+let latestTds = null;
+let latestTemp_air = null;
+let latestRain = null;
+let latestLight = null;
 
 const app = express();
 dotenv.config();
@@ -28,6 +52,8 @@ const lineConfig = {
 
 const client = new line.Client(lineConfig);
 
+
+//เส้นทาง UI หน้าเว็บแสดงเซ็นเซอร์
 const graphRoute = require('./graph');
 app.use('/graph',graphRoute);
 
@@ -49,7 +75,10 @@ app.post('/webhook', line.middleware(lineConfig), (req, res) => {
 });
 
 
-async function loadAndTrainModel(humidity,rain,temp_air) {
+
+
+
+async function loadAndTrainModel(soilHumidity, rain, lightIntensity, airTemp) {
 
   const auth = new google.auth.GoogleAuth({
     keyFile: "credentials.json",
@@ -68,27 +97,33 @@ async function loadAndTrainModel(humidity,rain,temp_air) {
   let data = response.data.values;
   data.shift();
 
-  const inputs = data.map(d => [+d[4], +d[5], +d[8]]); // Columns E, F, I
-  const labels = data.map(d => [+d[11]]); // Column L
+  const inputs = data.map(d => [+d[4], +d[5], +d[7], +d[8]]); // Columns E, F, H, I
+  const labels = data.map(d => [+d[9]]);
 
-  // Normalization (adjust as needed)
-  const inputsNormalized = inputs.map(d => [d[0] / 100, d[1] / 100, d[2] / 100]);
+
+  const inputsNormalized = inputs.map(d => [d[0] / 100, d[1] / 100, d[2] / 100, d[3] / 100]);
   const labelsNormalized = labels.map(d => [d[0] / 50]);
 
-  const inputTensor = tf.tensor2d(inputsNormalized, [inputs.length, 3]); // Adjusted for 3 features
+  const inputTensor = tf.tensor2d(inputsNormalized, [inputs.length, 4]); 
   const labelTensor = tf.tensor2d(labelsNormalized, [labels.length, 1]);
 
-  // Adjusted model architecture
+
   const model = tf.sequential();
-  model.add(tf.layers.dense({ units: 10, inputShape: [3] })); // Adjusted input shape
+  model.add(tf.layers.dense({ units: 10, inputShape: [4] }));
   model.add(tf.layers.dense({ units: 1 }));
+  model.compile({ loss: 'meanSquaredError', optimizer: 'sgd' });
 
   model.compile({ loss: 'meanSquaredError', optimizer: 'sgd' });
 
-  await model.fit(inputTensor, labelTensor, { epochs: 1000 });
+  await model.fit(inputTensor, labelTensor, { epochs: 500 });
 
 
-  const req_data = [denormalize_input(humidity,100), denormalize_input(rain,100),denormalize_input(temp_air,100)]; 
+  const req_data = [
+    denormalize_input(soilHumidity, 100), 
+    denormalize_input(rain, 100),
+    denormalize_input(lightIntensity, 100),
+    denormalize_input(airTemp, 100)
+  ];
   const prediction = model.predict(tf.tensor2d([req_data]));
 
   const predictionValues = prediction.dataSync();
@@ -107,8 +142,58 @@ function denormalize_input(value, max) {
   return value / max;
 }
 
-//----------------------------------------รอความเข็มแสง และ อุณห
+//----------------------------------------จบ AI ---------------------------------//
 
+
+
+
+//------------------------เริ่มการสั่งปั๊มน้ำด้วย Ai--------------------------//
+async function checkAndActivatePump() {
+
+  const humidity = latestHumidity;
+  const rain = latestRain;
+  const temp_air = latestTemp_air;
+  const light = latestLight;
+
+  console.log('------------> humidity ',humidity);
+  console.log('------------> rain ',rain);
+  console.log('------------> temp_air',temp_air);
+  console.log('------------> light',light);
+
+  if (humidity < 70) {
+    const prediction = await loadAndTrainModel(humidity, rain, light,temp_air,);
+    const pumpDuration = prediction.ai_value;
+
+    activatePumpForDuration(pumpDuration);
+  }else
+  console.log('-------->ไม่ทำ')
+}
+
+setInterval(checkAndActivatePump, 120000);
+
+
+function activatePumpForDuration(duration) {
+  
+  mqttClient.publish('/topic/qos0', 'on_pump_'+`${duration}`+'.0', { qos: 0 }, (error) => {
+    console.log('------------> activatePumpForDuration ',duration);
+    if (error) {
+        console.error('Error Publishing: ', error);
+    }
+
+  });
+
+}
+//------------------------จบการสั่งปั๊มน้ำด้วย Ai--------------------------//
+
+
+
+
+
+
+
+
+
+//------------------------แสดงกราฟของเซ็นเซอร์--------------------------//
 app.get('/chart-tds', async (req, res) => {
 
     try {
@@ -164,7 +249,12 @@ app.get('/chart-humidity', async (req, res) => {
   }
 });
 
+//------------------------จบแสดงกราฟของเซ็นเซอร์--------------------------//
 
+
+
+
+//------------------------ดึงค่าของเซ็นเซอร์จาก Google sheet API--------------------------//
 
 async function fetchLatestData() {
   const auth = new google.auth.GoogleAuth({
@@ -399,8 +489,15 @@ async function fetchLatestData_average(messageText) {
       console.error(error.message);
   }
 }
+//------------------------จบดึงค่าของเซ็นเซอร์จาก Google sheet API--------------------------//
 
 
+
+
+
+
+
+//------------------------เริ่มสร้างกราฟของเซ็นเซฮร์ด้วย ChartJs--------------------------//
 
 async function createChart_tds(data) {
     const width = 800;
@@ -515,6 +612,19 @@ async function createChart_humidity(data) {
 }
 
 
+
+//------------------------จบสร้างกราฟของเซ็นเซฮร์ด้วย ChartJs--------------------------//
+
+
+
+
+
+
+
+
+
+
+//------------------------เริ่มส่วนติดต่อกับ Line OA ทั้งหมด Res,Req--------------------------//
 async function handleEvent(event) {
     if (event.type !== 'message' || event.message.type !== 'text') {
         return Promise.resolve(null);
@@ -1828,11 +1938,7 @@ async function handleEvent(event) {
         
             return client.replyMessage(event.replyToken, flexMessage);
         });
-    } else if (event.message.text.toLowerCase() === 'ai') {
-
-      loadAndTrainModel();
-    }
-    
+    } 
     else if (event.message.text.toLowerCase() === 'sensor') {
         return fetchLatestData().then(data => {
             const flexMessage = {
@@ -4205,16 +4311,17 @@ else if (match_set_data) {
     }
 }
 
+
+//------------------------จบส่วนติดต่อกับ Line OA ทั้งหมด Res,Req--------------------------//
+
+
+
+
+
+
+//------------------------เริ่มสร้าง Websocket , MQTT และเปิด Server--------------------------//
 const port = process.env.PORT || 3000;
 
-const MQTT_TOPIC_HUMIDITY = '/topic/humidity';
-const MQTT_TOPIC_TEMP = '/topic/temp';
-
-// Subscribe to both topics
-mqttClient.subscribe(MQTT_TOPIC_HUMIDITY);
-mqttClient.subscribe(MQTT_TOPIC_TEMP);
-
-// WebSocket server setup
 const server = app.listen(port, () => console.log(`Server is running on port ${port}`));
 const wss = new Server({ server });
 
@@ -4222,7 +4329,7 @@ wss.on('connection', (ws) => {
   console.log('Client connected to WebSocket');
 
   mqttClient.on('message', (topic, message) => {
-    if (topic === MQTT_TOPIC_HUMIDITY || topic === MQTT_TOPIC_TEMP) {
+    if (topic === MQTT_TOPIC_HUMIDITY || topic === MQTT_TOPIC_TDS || topic === MQTT_TOPIC_TEMP_AIR || topic === MQTT_TOPIC_TEMP || topic === MQTT_TOPIC_LIGHT || topic === MQTT_TOPIC_RAIN ) {
       const data = { topic, message: message.toString() };
       ws.send(JSON.stringify(data));
     }
@@ -4230,3 +4337,20 @@ wss.on('connection', (ws) => {
 });
 
 
+mqttClient.on('message', (topic, message) => {
+  if (topic === MQTT_TOPIC_HUMIDITY) {
+      latestHumidity = parseFloat(message.toString());
+  } else if (topic === MQTT_TOPIC_TEMP) {
+      latestTemperature = parseFloat(message.toString());
+  }else if (topic === MQTT_TOPIC_TEMP_AIR) {
+    latestTemp_air = parseFloat(message.toString());
+}else if (topic === MQTT_TOPIC_RAIN) {
+  latestRain = parseFloat(message.toString());
+}else if (topic === MQTT_TOPIC_TDS) {
+  latestTds = parseFloat(message.toString());
+}else if (topic === MQTT_TOPIC_LIGHT) {
+  latestLight = parseFloat(message.toString());
+}
+});
+
+//------------------------จบการทำงาน Websocket , MQTT และเปิด Server--------------------------//
