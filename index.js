@@ -278,7 +278,7 @@ async function fetchLatestData() {
         const rain = latestRow[5];
         const humidity = latestRow[4];
         const data_fecth = latestRow[6];
-        const light = latestRow[7];
+        const light = latestRow[8];
         const rows = getRows.data.values.length;
 
         return {
@@ -1701,11 +1701,6 @@ async function handleEvent(event) {
     if (event.message.text === 'latest_status') {
         return fetchLatestData().then(data => {
 
-          if(data.light = 1){
-            var li = "สว่าง"
-          }else{
-            var li = "มืด"
-          }
           const flexMessage = {
             type: "flex",
             altText: "Flex Message",
@@ -1914,7 +1909,7 @@ async function handleEvent(event) {
                               },
                               {
                                   type: "text",
-                                  text: li,
+                                  text: data.light + " %",
                                   size: "sm",
                                   color: "#111111",
                                   align: "end"
