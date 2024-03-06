@@ -249,6 +249,34 @@ app.get('/chart-humidity', async (req, res) => {
   }
 });
 
+app.get('/chart-temp_air', async (req, res) => {
+
+
+  try {
+      const data = await fetchLatestData_temp_air();
+      const chartBuffer = await createChart_temp_air(data);
+      res.set('Content-Type', 'image/png');
+      res.send(chartBuffer);
+  } catch (error) {
+      console.error(error);
+      res.status(500).send('Error in generating chart');
+  }
+});
+
+app.get('/chart-light', async (req, res) => {
+
+
+  try {
+      const data = await fetchLatestData_light();
+      const chartBuffer = await createChart_light(data);
+      res.set('Content-Type', 'image/png');
+      res.send(chartBuffer);
+  } catch (error) {
+      console.error(error);
+      res.status(500).send('Error in generating chart');
+  }
+});
+
 //------------------------จบแสดงกราฟของเซ็นเซอร์--------------------------//
 
 
@@ -268,7 +296,7 @@ async function fetchLatestData() {
     const getRows = await googleSheets.spreadsheets.values.get({
         auth,
         spreadsheetId,
-        range: "Report_ppm!A:G",
+        range: "Report_ppm!A:J",
     });
     if (getRows.data.values && getRows.data.values.length > 0) {
         const latestRow = getRows.data.values[getRows.data.values.length - 1];
@@ -278,7 +306,8 @@ async function fetchLatestData() {
         const rain = latestRow[5];
         const humidity = latestRow[4];
         const data_fecth = latestRow[6];
-        const light = latestRow[8];
+        const light = latestRow[7];
+        const temp_air = latestRow[8];
         const rows = getRows.data.values.length;
 
         return {
@@ -288,7 +317,8 @@ async function fetchLatestData() {
           humidity,
           rows,
           data_fecth,
-          light
+          light,
+          temp_air
         };
       } else {
         return null;
@@ -397,6 +427,56 @@ async function fetchLatestData_tds() {
       return null;
     }
   }
+  async function fetchLatestData_temp_air() {
+    const auth = new google.auth.GoogleAuth({
+        keyFile: "credentials.json",
+        scopes: "https://www.googleapis.com/auth/spreadsheets",
+      });
+    
+      const client = await auth.getClient();
+      const googleSheets = google.sheets({ version: "v4", auth: client });
+      const spreadsheetId = "1swvSk80vnofeYPkm2yuKt6C09QFrWN6fO3z3RTfwOjg";
+      const getRows = await googleSheets.spreadsheets.values.get({
+          auth,
+          spreadsheetId,
+          range: "Report_ppm!A:L",
+      });
+    if (getRows.data.values && getRows.data.values.length > 0) {
+
+      const last20Rows = getRows.data.values.slice(-400);
+      return last20Rows.map(row => ({
+        time: row[1],
+        tds: row[8], 
+      }));
+    } else {
+      return null;
+    }
+  }
+  async function fetchLatestData_light() {
+    const auth = new google.auth.GoogleAuth({
+        keyFile: "credentials.json",
+        scopes: "https://www.googleapis.com/auth/spreadsheets",
+      });
+    
+      const client = await auth.getClient();
+      const googleSheets = google.sheets({ version: "v4", auth: client });
+      const spreadsheetId = "1swvSk80vnofeYPkm2yuKt6C09QFrWN6fO3z3RTfwOjg";
+      const getRows = await googleSheets.spreadsheets.values.get({
+          auth,
+          spreadsheetId,
+          range: "Report_ppm!A:L",
+      });
+    if (getRows.data.values && getRows.data.values.length > 0) {
+
+      const last20Rows = getRows.data.values.slice(-400);
+      return last20Rows.map(row => ({
+        time: row[1],
+        tds: row[7], 
+      }));
+    } else {
+      return null;
+    }
+  }
 
 
 async function fetchLatestData_average(messageText) {
@@ -414,7 +494,7 @@ async function fetchLatestData_average(messageText) {
       const getRows = await googleSheets.spreadsheets.values.get({
           auth,
           spreadsheetId,
-          range: "Report_ppm!A:F",
+          range: "Report_ppm!A:L",
       });
 
       if (getRows.data.values && getRows.data.values.length > 0) {
@@ -478,6 +558,8 @@ async function fetchLatestData_average(messageText) {
               temp: calculateMetricsForSensor(3),
               humidity: calculateMetricsForSensor(4),
               rain: calculateMetricsForSensor(5),
+              temp_air: calculateMetricsForSensor(8),
+              light: calculateMetricsForSensor(7),
           };
 
           console.log(sensorData);
@@ -611,6 +693,65 @@ async function createChart_humidity(data) {
   return await chartJSNodeCanvas.renderToBuffer(configuration);
 }
 
+async function createChart_temp_air(data) {
+  const width = 800;
+  const height = 600;
+  const chartJSNodeCanvas = new ChartJSNodeCanvas({ width, height });
+
+  const configuration = {
+    type: 'line',
+    data: {
+      labels: data.map(item => item.time),
+      datasets : [
+          {
+            label: 'Temp Air',
+            data: data.map(item => item.tds),
+            borderColor: '#800080', 
+            backgroundColor: 'rgba(128, 0, 128, 0.2)', 
+            fill: true,
+            pointRadius: 2, 
+            pointBackgroundColor: '#800080', 
+            borderWidth: 2, 
+          },
+        ],
+
+    },
+  };
+
+  return await chartJSNodeCanvas.renderToBuffer(configuration);
+}
+
+async function createChart_light(data) {
+  const width = 800;
+  const height = 600;
+  const chartJSNodeCanvas = new ChartJSNodeCanvas({ width, height });
+
+  const configuration = {
+    type: 'line',
+    data: {
+      labels: data.map(item => item.time),
+      datasets : [
+          {
+            label: 'Light',
+            data: data.map(item => item.tds),
+            borderColor: '#FFA500', 
+            backgroundColor: 'rgba(255, 165, 0, 0.2)', 
+            fill: true,
+            pointRadius: 2, 
+            pointBackgroundColor: '#FFA500',
+            borderWidth: 2, 
+          },
+        ],
+
+    },
+  };
+
+  return await chartJSNodeCanvas.renderToBuffer(configuration);
+}
+
+
+
+
 
 
 //------------------------จบสร้างกราฟของเซ็นเซฮร์ด้วย ChartJs--------------------------//
@@ -634,6 +775,8 @@ async function handleEvent(event) {
     const match_tds = text.match(/^tds(.+)/);
     const match_temp = text.match(/^temp(.+)/);         
     const match_rain = text.match(/^rain(.+)/);
+    const match_air = text.match(/^air(.+)/);
+    const match_light = text.match(/^light(.+)/);
     const match_humidity = text.match(/^humidity(.+)/);
     const match_time = text.match(/^time(.+)/);
     const match_pump = text.match(/^pump(.+)/);
@@ -1697,6 +1840,512 @@ async function handleEvent(event) {
       });
 
     }
+    if (match_air) {
+      const valueAfterAvgTds = match_air[1];
+      return fetchLatestData_average(valueAfterAvgTds).then(data => {
+        const flexMessage = {
+          type: "flex",
+          altText: "Flex Message",
+          contents: {
+            type: "bubble",
+            size: "kilo",
+            body: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "ค่าสถิติ (Temp Air)",
+                  weight: "bold",
+                  size: "xl",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: "ผลคำนวณทางสถิติย้อนหลัง ~" + `${valueAfterAvgTds}`,
+                  size: "xs",
+                  color: "#aaaaaa",
+                  wrap: true
+                },
+                {
+                  type: "separator",
+                  margin: "xxl"
+                },
+                {
+                  type: "box",
+                  layout: "vertical",
+                  margin: "xxl",
+                  spacing: "sm",
+                  contents: [
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Average",
+                          size: "sm",
+                          color: "#555555",
+                          flex: 0
+                        },
+                        {
+                          type: "text",
+                          text: `${data.temp_air.average.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          size: "sm",
+                          color: "#555555",
+                          flex: 0,
+                          text: "Median"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.temp_air.median.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Mode",
+                          size: "sm",
+                          color: "#555555",
+                          flex: 0
+                        },
+                        {
+                          type: "text",
+                          text: `${data.temp_air.median.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      margin: "xxl",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Max. value",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.temp_air.max.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Min. value",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.temp_air.min.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Std. value",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.temp_air.stdDev.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Percentile 25",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.temp_air.percentile25}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Percentile 50",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.temp_air.percentile50}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Percentile 75",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.temp_air.percentile75}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "xxl"
+                },
+                {
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "REPORT ID",
+                      size: "xs",
+                      color: "#aaaaaa",
+                      flex: 0
+                    },
+                    {
+                      type: "text",
+                      text: "#743289384279"+`${data.temp_air.average}`,
+                      color: "#aaaaaa",
+                      size: "xs",
+                      align: "end"
+                    }
+                  ]
+                }
+              ]
+            },
+            styles: {
+              footer: {
+                separator: true
+              }
+            }
+          }
+        };
+        
+          return client.replyMessage(event.replyToken, flexMessage);
+      });
+
+    }
+    if (match_light) {
+      const valueAfterAvgTds = match_light[1];
+      return fetchLatestData_average(valueAfterAvgTds).then(data => {
+        const flexMessage = {
+          type: "flex",
+          altText: "Flex Message",
+          contents: {
+            type: "bubble",
+            size: "kilo",
+            body: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "ค่าสถิติ (Light)",
+                  weight: "bold",
+                  size: "xl",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: "ผลคำนวณทางสถิติย้อนหลัง ~" + `${valueAfterAvgTds}`,
+                  size: "xs",
+                  color: "#aaaaaa",
+                  wrap: true
+                },
+                {
+                  type: "separator",
+                  margin: "xxl"
+                },
+                {
+                  type: "box",
+                  layout: "vertical",
+                  margin: "xxl",
+                  spacing: "sm",
+                  contents: [
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Average",
+                          size: "sm",
+                          color: "#555555",
+                          flex: 0
+                        },
+                        {
+                          type: "text",
+                          text: `${data.light.average.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          size: "sm",
+                          color: "#555555",
+                          flex: 0,
+                          text: "Median"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.light.median.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Mode",
+                          size: "sm",
+                          color: "#555555",
+                          flex: 0
+                        },
+                        {
+                          type: "text",
+                          text: `${data.light.median.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      margin: "xxl",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Max. value",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.light.max.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Min. value",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.light.min.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Std. value",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.light.stdDev.toFixed(2)}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Percentile 25",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.light.percentile25}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Percentile 50",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.light.percentile50}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "Percentile 75",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${data.light.percentile75}`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "xxl"
+                },
+                {
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "REPORT ID",
+                      size: "xs",
+                      color: "#aaaaaa",
+                      flex: 0
+                    },
+                    {
+                      type: "text",
+                      text: "#743289384279"+`${data.light.average}`,
+                      color: "#aaaaaa",
+                      size: "xs",
+                      align: "end"
+                    }
+                  ]
+                }
+              ]
+            },
+            styles: {
+              footer: {
+                separator: true
+              }
+            }
+          }
+        };
+        
+          return client.replyMessage(event.replyToken, flexMessage);
+      });
+
+    }
 
     if (event.message.text === 'latest_status') {
         return fetchLatestData().then(data => {
@@ -1919,7 +2568,48 @@ async function handleEvent(event) {
                           ],
                           
                           paddingBottom: "md"
-                      } 
+                      },
+
+                      {
+                        type: "separator",
+                        margin: "xxl"
+                    },
+                      {
+                        type: "box",
+                        layout: "horizontal",
+                        margin: "xxl",
+                        contents: []
+                    },
+                    {
+                        type: "text",
+                        text: "Temp Air Sensor",
+                        size: "md",
+                        color: "#555555",
+                        weight: "bold"
+                    },
+                    {
+                        type: "box",
+                        layout: "horizontal",
+                        contents: [
+                            {
+                                type: "text",
+                                size: "sm",
+                                color: "#555555",
+                                text: "▪ อุณหภูมิอากาศ"
+                            },
+                            {
+                                type: "text",
+                                text: data.temp_air + " °C",
+                                size: "sm",
+                                color: "#111111",
+                                align: "end"
+                            }
+                        ],
+                        paddingBottom: "md"
+                    },
+
+
+
                     ]
                 },
                 
@@ -2007,15 +2697,25 @@ async function handleEvent(event) {
                       },
                       {
                         "type": "button",
-                        "style": "primary",
+                        "style": "secondary",
                         "height": "sm",
                         "action": {
                           "type": "message",
-                          "label": "แสดงค่าทั้งหมด",
-                          "text": "all"
-                        },
-                        "color": "#090c25"
-                      }
+                          "label": "Temp Air Sensor",
+                          "text": "air_temp"
+                        }
+                      },
+                      {
+                        "type": "button",
+                        "style": "secondary",
+                        "height": "sm",
+                        "action": {
+                          "type": "message",
+                          "label": "Light Sensor",
+                          "text": "light"
+                        }
+                      },
+                     
                       
                     ],
                     margin: "none"
@@ -2453,40 +3153,225 @@ async function handleEvent(event) {
         
       return client.replyMessage(event.replyToken, flexMessage);
   });
-} 
-    else if (event.message.text.toLowerCase() === 'all') {
-        return fetchLatestData().then(data => {
-            const flexMessage = {
-                type: 'flex',
-                altText: 'ข้อมูลล่าสุด',
-                contents: {
-                    type: 'bubble',
-                    size: 'kilo',
-                    body: {
-                        type: 'box',
-                        layout: 'vertical',
-                        contents: [
-                            {
-                                "type": "text",
-                                "text": "About Sensor",
-                                "size": "xl",
-                                "weight": "bold"
-                              },
-                              {
-                                "type": "text",
-                                "text": "เอกสารที่เกี่ยวข้องและคำอธิบายเซ็นเซอร์2",
-                                "size": "xxs",
-                                "weight": "regular",
-                                "color": "#959595"
-                              }
-                            ]
+} else if (event.message.text.toLowerCase() === 'air_temp') {
+  return fetchLatestData().then(async data => {
+
+    if (data.temp_air < 0 ){
+      var notify_temp_air = "❌ ไม่ปกติ"
+    }else if(data.temp_air >= 0 && data.temp_air <= 21){
+      var notify_temp_air = "🟨 เย็นกว่าปกติ"
+    }else if(data.temp_air >= 22 && data.temp_air <= 30){
+      var notify_temp_air = "✅ ปกติ"
+    }else{
+      var notify_temp_air = "🟥 สูงกว่าปกติ"
+    }
+    
+        const flexMessage = {
+          "type": "flex",
+          "altText": "Flex Message",
+          "contents": {
+            "type": "bubble",
+            "size": "giga",
+            "hero": {
+              "type": "image",
+              "url": header_url+"/chart-temp_air",
+              "size": "full",
+              "aspectRatio": "8:6",
+              "aspectMode": "cover",
+              "action": {
+                "type": "uri",
+                "uri": header_url+"/chart-temp_air"
+              }
+            },
+            "body": {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "Temp Air Sensor",
+                  "weight": "bold",
+                  "size": "xxl",
+                  "margin": "none"
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "margin": "lg",
+                  "spacing": "none",
+                  "contents": [
+                    {
+                      "type": "box",
+                      "layout": "baseline",
+                      "spacing": "sm",
+                      "contents": [
+                        {
+                          "type": "text",
+                          "text": "(1) อุณหภูมิอากาศ",
+                          "size": "md",
+                          "flex": 5,
+                          "margin": "none"
+                        },
+                        {
+                          "type": "text",
+                          "text": data.temp_air + " °C",
+                          "wrap": true,
+                          "color": "#666666",
+                          "size": "md",
+                          "flex": 5,
+                          "align": "end",
+                          "margin": "none"
+                        }
+                      ],
+                      "margin": "none"
+                    },
+                    {
+                      "type": "box",
+                      "layout": "baseline",
+                      "spacing": "sm",
+                      "contents": [
+                        {
+                          "type": "text",
+                          "text": "(2) สถานะอุณหภูมิอากาศ",
+                          "size": "md",
+                          "flex": 5,
+                          "margin": "none"
+                        },
+                        {
+                          "type": "text",
+                          "text": notify_temp_air,
+                          "wrap": true,
+                          "color": "#666666",
+                          "size": "md",
+                          "flex": 5,
+                          "align": "end",
+                          "margin": "none"
+                        }
+                      ],
+                      "margin": "none"
                     }
+                  ]
                 }
-            };
-            return client.replyMessage(event.replyToken, flexMessage);
-        });
+              ]
+            }
+          }
+        };
         
-    } else if (event.message.text.toLowerCase() === 'stats_tds') {
+        
+      return client.replyMessage(event.replyToken, flexMessage);
+  });
+} 
+
+else if (event.message.text.toLowerCase() === 'light') {
+  return fetchLatestData().then(async data => {
+
+    if (data.light < 0 ){
+      var notify_light = "❌ ไม่ปกติ"
+    }else if(data.light >= 0 && data.light <= 40){
+      var notify_light = "🟨 น้อยกว่าปกติ"
+    }else if(data.light >= 41 && data.light <= 70){
+      var notify_light = "✅ ปกติ"
+    }else{
+      var notify_light = "🟥 สูงกว่าปกติ"
+    }
+    
+        const flexMessage = {
+          "type": "flex",
+          "altText": "Flex Message",
+          "contents": {
+            "type": "bubble",
+            "size": "giga",
+            "hero": {
+              "type": "image",
+              "url": header_url+"/chart-light",
+              "size": "full",
+              "aspectRatio": "8:6",
+              "aspectMode": "cover",
+              "action": {
+                "type": "uri",
+                "uri": header_url+"/chart-light"
+              }
+            },
+            "body": {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "Light Sensor",
+                  "weight": "bold",
+                  "size": "xxl",
+                  "margin": "none"
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "margin": "lg",
+                  "spacing": "none",
+                  "contents": [
+                    {
+                      "type": "box",
+                      "layout": "baseline",
+                      "spacing": "sm",
+                      "contents": [
+                        {
+                          "type": "text",
+                          "text": "(1) ความเข้มแสง",
+                          "size": "md",
+                          "flex": 5,
+                          "margin": "none"
+                        },
+                        {
+                          "type": "text",
+                          "text": data.light + " %",
+                          "wrap": true,
+                          "color": "#666666",
+                          "size": "md",
+                          "flex": 5,
+                          "align": "end",
+                          "margin": "none"
+                        }
+                      ],
+                      "margin": "none"
+                    },
+                    {
+                      "type": "box",
+                      "layout": "baseline",
+                      "spacing": "sm",
+                      "contents": [
+                        {
+                          "type": "text",
+                          "text": "(2) สถานะความเข้มแสง",
+                          "size": "md",
+                          "flex": 5,
+                          "margin": "none"
+                        },
+                        {
+                          "type": "text",
+                          "text": notify_light,
+                          "wrap": true,
+                          "color": "#666666",
+                          "size": "md",
+                          "flex": 5,
+                          "align": "end",
+                          "margin": "none"
+                        }
+                      ],
+                      "margin": "none"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        };
+        
+        
+      return client.replyMessage(event.replyToken, flexMessage);
+  });
+}
+
+else if (event.message.text.toLowerCase() === 'stats_tds') {
       return fetchLatestData().then(data => {
         const flexMessage = {
           "type": "flex",
@@ -3031,8 +3916,287 @@ async function handleEvent(event) {
     
       return client.replyMessage(event.replyToken, flexMessage);
   });
+
+
   
-}else if (event.message.text.toLowerCase() === 'statistics') {
+}else if (event.message.text.toLowerCase() === 'stats_air_temp') {
+  return fetchLatestData().then(data => {
+    const flexMessage = {
+      "type": "flex",
+      "altText": "Flex Message",
+      "contents": {
+        "type": "bubble",
+        "size": "kilo",
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "text",
+              "text": "📊 Temp Air!",
+              "weight": "bold",
+              "size": "xxl"
+            },
+            {
+              type: "separator",
+              margin: "xxl"
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "margin": "lg",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "STEP 1",
+                      "size": "sm",
+                      "flex": 2
+                    },
+                    {
+                      "type": "text",
+                      "text": "จำนวนแถวทั้งหมดคือ "+`${data.rows}\n`+ "เลือกค่าย้อนหลังที่ต้องการ!",
+                      "wrap": true,
+                      "size": "sm",
+                      "flex": 5
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "xxl"
+                },
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "STEP 2",
+                      "size": "sm",
+                      "flex": 2
+                    },
+                    {
+                      "type": "text",
+                      "text": "ใช้คำสั่ง air(ตามด้วย\nจำนวนแถวที่ต้องการดู!)",
+                      "wrap": true,
+                      "size": "sm",
+                      "flex": 5
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "xxl"
+                },
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "EX 1",
+                      "size": "sm",
+                      "flex": 2
+                    },
+                    {
+                      "type": "text",
+                      "text": "air"+`${data.rows}`,
+                      "wrap": true,
+                      "size": "sm",
+                      "flex": 5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          spacing: "md",
+          contents: [
+            {
+              "type": "button",
+              "style": "secondary",
+              "height": "sm",
+              "action": {
+                "type": "message",
+                "label": "แสดงแถวทั้งหมด",
+                "text": "air9999999"
+              }
+            },
+            {
+              "type": "button",
+              "style": "primary",
+              "height": "sm",
+              "action": {
+                "type": "message",
+                "label": "⬅️ Statistics",
+                "text": "statistics"
+              },
+              "color": "#090c25"
+            }
+            
+          ],
+          margin: "none"
+        },
+      }
+    };
+    
+      return client.replyMessage(event.replyToken, flexMessage);
+  });
+  
+}else if (event.message.text.toLowerCase() === 'stats_light') {
+  return fetchLatestData().then(data => {
+    const flexMessage = {
+      "type": "flex",
+      "altText": "Flex Message",
+      "contents": {
+        "type": "bubble",
+        "size": "kilo",
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "text",
+              "text": "📊 Light!",
+              "weight": "bold",
+              "size": "xxl"
+            },
+            {
+              type: "separator",
+              margin: "xxl"
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "margin": "lg",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "STEP 1",
+                      "size": "sm",
+                      "flex": 2
+                    },
+                    {
+                      "type": "text",
+                      "text": "จำนวนแถวทั้งหมดคือ "+`${data.rows}\n`+ "เลือกค่าย้อนหลังที่ต้องการ!",
+                      "wrap": true,
+                      "size": "sm",
+                      "flex": 5
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "xxl"
+                },
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "STEP 2",
+                      "size": "sm",
+                      "flex": 2
+                    },
+                    {
+                      "type": "text",
+                      "text": "ใช้คำสั่ง light(ตามด้วย\nจำนวนแถวที่ต้องการดู!)",
+                      "wrap": true,
+                      "size": "sm",
+                      "flex": 5
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "xxl"
+                },
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "EX 1",
+                      "size": "sm",
+                      "flex": 2
+                    },
+                    {
+                      "type": "text",
+                      "text": "light"+`${data.rows}`,
+                      "wrap": true,
+                      "size": "sm",
+                      "flex": 5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          spacing: "md",
+          contents: [
+            {
+              "type": "button",
+              "style": "secondary",
+              "height": "sm",
+              "action": {
+                "type": "message",
+                "label": "แสดงแถวทั้งหมด",
+                "text": "light9999999"
+              }
+            },
+            {
+              "type": "button",
+              "style": "primary",
+              "height": "sm",
+              "action": {
+                "type": "message",
+                "label": "⬅️ Statistics",
+                "text": "statistics"
+              },
+              "color": "#090c25"
+            }
+            
+          ],
+          margin: "none"
+        },
+      }
+    };
+    
+      return client.replyMessage(event.replyToken, flexMessage);
+  });
+  
+}
+
+
+
+
+else if (event.message.text.toLowerCase() === 'statistics') {
   return fetchLatestData().then(data => {
     const flexMessage = {
       type: "flex",
@@ -3096,6 +4260,26 @@ async function handleEvent(event) {
                 "type": "message",
                 "label": "Humidity Sensor",
                 "text": "stats_humidity"
+              }
+            },
+            {
+              "type": "button",
+              "style": "secondary",
+              "height": "sm",
+              "action": {
+                "type": "message",
+                "label": "Temp Air Sensor",
+                "text": "stats_air_temp"
+              }
+            },
+            {
+              "type": "button",
+              "style": "secondary",
+              "height": "sm",
+              "action": {
+                "type": "message",
+                "label": "Light Sensor",
+                "text": "stats_light"
               }
             },
           ],
