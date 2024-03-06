@@ -169,7 +169,7 @@ async function checkAndActivatePump() {
   console.log('-------->ไม่ทำ')
 }
 
-setInterval(checkAndActivatePump, 120000);
+setInterval(checkAndActivatePump, 60000);
 
 
 function activatePumpForDuration(duration) {
