@@ -3173,7 +3173,7 @@ else if (event.message.text.toLowerCase() === 'setting') {
               "style": "primary",
               "height": "sm",
               "action": {
-                "type": "message",
+                "type": "uri",
                 "label": "Control Monitor",
                 "uri": "https://water-bot-222609226e9c.herokuapp.com/graph"
               },
