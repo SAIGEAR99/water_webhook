@@ -3174,8 +3174,8 @@ else if (event.message.text.toLowerCase() === 'setting') {
               "height": "sm",
               "action": {
                 "type": "message",
-                "label": "About Project",
-                "text": "abpj"
+                "label": "Control Monitor",
+                "uri": "https://water-bot-222609226e9c.herokuapp.com/graph"
               },
               "color": "#090c25"
             },
